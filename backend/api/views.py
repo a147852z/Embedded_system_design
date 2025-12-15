@@ -1,0 +1,104 @@
+import os
+from datetime import datetime
+from django.utils import timezone
+from rest_framework import viewsets, status
+from rest_framework.decorators import action, api_view
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from .models import ParkingSpot, LogEntry
+from .serializers import ParkingSpotSerializer, LogEntrySerializer
+import requests
+import json
+import re
+
+def parse_plate_response(ai_response_text):
+    try:
+        # 1. 使用 Regex 搜尋字串中第一個被 {} 包住的內容 (支援換行)
+        match = re.search(r'\{.*\}', ai_response_text, re.DOTALL)
+        
+        if match:
+            json_str = match.group()
+            # 2. 解析 JSON
+            data = json.loads(json_str)
+            return data
+        else:
+            print("❌ 找不到 JSON 格式")
+            return {"plate_number": "UNKNOWN"}
+
+    except json.JSONDecodeError:
+        print("❌ JSON 格式錯誤 (可能是引號問題)")
+        return {"plate_number": "UNKNOWN"}
+    
+def post_to_llm(image_base64: str) -> str:
+    prompt = """Role: You are an Automated License Plate Recognition (ALPR) system.
+Task: Analyze the provided image and extract the vehicle license plate number.
+
+Strict Output Rules:
+1. Output ONLY a valid JSON object.
+2. Format: {"plate_number": "YOUR_RESULT_HERE"}
+3. Convert all characters to UPPERCASE.
+4. Remove all spaces, dashes ('-'), and special characters. Return only alphanumeric characters (A-Z, 0-9).
+5. If the plate is unclear, too small, or not visible, return: {"plate_number": "UNKNOWN"}
+6. DO NOT provide any explanations, markdown formatting (like ```json), or conversational text. Just the raw JSON string.
+"""
+
+    payload = {
+        "key": "text+image",
+        "text_query": prompt,
+        "image_base64": image_base64,
+    }
+    # print(f"LLM 辨識中 ({getattr(mp,'name',mp)})...")
+    llm_url = "http://192.168.50.105:5000/generate"
+    resp = requests.post(llm_url, json=payload, timeout=30)  
+    response = resp.json().get("response", "{}")
+    plate_number_data = parse_plate_response(response)
+    print(plate_number_data["plate_number"])
+    return plate_number_data["plate_number"]
+
+
+class ParkingSpotViewSet(viewsets.ModelViewSet):
+    queryset = ParkingSpot.objects.all().order_by('id')
+    serializer_class = ParkingSpotSerializer
+
+    @action(detail=True, methods=['post'])
+    def occupy(self, request, pk=None):
+        spot = self.get_object()
+        plate = request.data.get('plate_number')
+        if not plate:
+            return Response({'detail': 'plate_number required'}, status=status.HTTP_400_BAD_REQUEST)
+        print(123)
+        spot.status = 'OCCUPIED'
+        spot.plate_number = plate
+        spot.parked_time = timezone.now()
+        spot.save()
+        return Response({'detail': 'occupied'})
+
+
+class LogEntryViewSet(viewsets.ModelViewSet):
+    queryset = LogEntry.objects.all().order_by('-timestamp')
+    serializer_class = LogEntrySerializer
+
+
+class RecognizePlateAPIView(APIView):
+    """
+    POST /api/recognize/
+    Body: { "image": "data:image/jpeg;base64,..." }
+    Returns: { "plate_number": "ABC-1234" }
+    """
+    def post(self, request, format=None):
+        data = request.data
+        image = data.get('image')
+        print("TEST")
+        # api_key = os.environ.get('GEMINI_API_KEY')
+        if not image:
+            return Response({'detail': 'image is required'}, status=status.HTTP_400_BAD_REQUEST)
+        base64_str = request.data.get('image').split('base64,')[-1]
+        response = post_to_llm(base64_str)
+
+        # if not api_key:
+        #     # No key configured: return UNKNOWN so frontend can still function in local dev
+        #     return Response({'plate_number': 'UNKNOWN'})
+
+        # TODO: Implement real call to Gemini / Google GenAI here.
+        # For now return UNKNOWN to avoid requiring external credentials in the template.
+        return Response({'plate_number': response})

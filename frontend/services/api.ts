@@ -1,0 +1,140 @@
+import { ParkingSpot, SpotStatus, LogEntry } from '../types';
+
+// --- CONFIGURATION ---
+// Set this to FALSE when your Django server is running
+// For migrating storage to backend, default to false so frontend uses real API
+const USE_MOCK_API = false;
+// Use relative path so Vite dev server proxy or production webserver can handle same-origin requests
+const API_BASE_URL = '/api';
+
+// --- MOCK DATA (Simulating Database) ---
+let MOCK_SPOTS: ParkingSpot[] = Array.from({ length: 4 }, (_, i) => ({
+  id: `A-${i + 1}`,
+  label: `A-${i + 1}`,
+  status: i === 1 ? SpotStatus.OCCUPIED : i === 3 ? SpotStatus.ABNORMAL : SpotStatus.AVAILABLE,
+  distanceRaw: 5,
+  floor: 1,
+  section: 'A',
+  plateNumber: i === 1 ? 'ABC-5678' : undefined,
+}));
+
+let MOCK_LOGS: LogEntry[] = [];
+
+// --- API FUNCTIONS ---
+
+export const api = {
+  /**
+   * GET /api/spots/
+   */
+  fetchSpots: async (): Promise<ParkingSpot[]> => {
+    if (USE_MOCK_API) {
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 300));
+      return [...MOCK_SPOTS];
+    }
+
+    const res = await fetch(`${API_BASE_URL}/spots/`);
+    const data = await res.json();
+    // Convert backend (snake_case) to frontend shape (camelCase + Date objects)
+    return data.map((s: any) => ({
+      id: s.id,
+      label: s.label,
+      status: s.status as SpotStatus,
+      distanceRaw: s.distance_raw,
+      floor: s.floor,
+      section: s.section,
+      plateNumber: s.plate_number || undefined,
+      parkedTime: s.parked_time ? new Date(s.parked_time) : undefined,
+      abnormalReason: s.abnormal_reason || undefined,
+    }));
+  },
+
+  /**
+   * POST /api/spots/:id/occupy/
+   */
+  occupySpot: async (spotId: string, plateNumber: string): Promise<void> => {
+    if (USE_MOCK_API) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      MOCK_SPOTS = MOCK_SPOTS.map(s => s.id === spotId ? {
+        ...s,
+        status: SpotStatus.OCCUPIED,
+        plateNumber: plateNumber,
+        parkedTime: new Date()
+      } : s);
+      return;
+    }
+
+    await fetch(`${API_BASE_URL}/spots/${spotId}/occupy/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plate_number: plateNumber })
+    });
+  },
+
+  /**
+   * PATCH /api/spots/:id/
+   */
+  updateSpotStatus: async (spotId: string, status: SpotStatus, abnormalReason?: string): Promise<void> => {
+    if (USE_MOCK_API) {
+      MOCK_SPOTS = MOCK_SPOTS.map(s => s.id === spotId ? {
+        ...s,
+        status: status,
+        abnormalReason: status === SpotStatus.ABNORMAL ? (abnormalReason || '模擬異常') : undefined,
+        plateNumber: status === SpotStatus.AVAILABLE ? undefined : s.plateNumber
+      } : s);
+      return;
+    }
+
+    await fetch(`${API_BASE_URL}/spots/${spotId}/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, abnormal_reason: abnormalReason })
+    });
+  },
+
+  /**
+   * GET /api/logs/
+   */
+  fetchLogs: async (): Promise<LogEntry[]> => {
+    if (USE_MOCK_API) {
+      return [...MOCK_LOGS];
+    }
+    const res = await fetch(`${API_BASE_URL}/logs/`);
+    // Need to convert string timestamps to Date objects if fetching from JSON
+    const data = await res.json();
+    return data.map((log: any) => ({
+      id: log.id?.toString(),
+      timestamp: new Date(log.timestamp),
+      type: log.type,
+      message: log.message,
+      plateNumber: log.plate_number || undefined,
+      spotId: log.spot || undefined,
+    }));
+  },
+
+  /**
+   * POST /api/logs/
+   */
+  createLog: async (entry: Omit<LogEntry, 'id'>): Promise<void> => {
+    if (USE_MOCK_API) {
+      const newLog = { ...entry, id: Date.now().toString() };
+      MOCK_LOGS = [newLog, ...MOCK_LOGS];
+      return;
+    }
+
+    // Convert frontend entry keys to backend naming where needed
+    const payload: any = {
+      timestamp: entry.timestamp.toISOString(),
+      type: entry.type,
+      message: entry.message,
+    };
+    if (entry.plateNumber) payload.plate_number = entry.plateNumber;
+    if (entry.spotId) payload.spot = entry.spotId;
+
+    await fetch(`${API_BASE_URL}/logs/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  }
+};

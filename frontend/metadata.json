@@ -1,0 +1,7 @@
+{
+  "name": "AI-Park Management System",
+  "description": "A smart parking management system featuring license plate recognition, interactive map routing, and abnormality detection based on the AI-Park V2 specifications.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
