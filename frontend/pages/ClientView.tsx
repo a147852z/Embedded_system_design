@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { ScanLine, Check, RotateCcw } from 'lucide-react';
 import ParkingMap from '../components/ParkingMap';
 import { Header, StatusBadge } from '../components/Shared';
-import { recognizeLicensePlate } from '../services/geminiService';
+import { recognizeLicensePlate } from '../services/VLMService';
 import { ParkingSpot, SpotStatus } from '../types';
 import { api } from '../services/api';
 
@@ -112,7 +112,7 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
            {scanning ? (
              <div className="flex items-center justify-center gap-3 text-blue-600 py-4">
                <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-               <span className="font-bold">AI 辨識車牌中 (Gemini 2.5 Flash)...</span>
+               <span className="font-bold">AI 辨識車牌中</span>
              </div>
            ) : (
              <div className="text-center">
