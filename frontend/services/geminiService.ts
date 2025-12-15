@@ -1,28 +1,23 @@
-// --- 修改前 ---
-// const API_BASE_URL = 'http://192.168.178.151:8000/api';
+// --- 修改後：同源 API（配合 Vite proxy / 反向代理） ---
+// 1) 一律走同源 /api，避免 Mixed Content，也避免外部使用者打到自己的 :8000
+const API_BASE_URL = '/api';
 
-// --- 修改後 (自動抓取當前 IP) ---
-// 1. 抓取瀏覽器網址列的 Hostname (例如 'localhost' 或 '192.168.1.100')
-const currentHostname = window.location.hostname;
+console.log('當前 API 設定為:', API_BASE_URL);
 
-// 2. 組合出後端網址 (假設後端永遠固定在 Port 8000)
-const API_BASE_URL = `http://${currentHostname}:8000/api`;
-
-console.log("當前 API 設定為:", API_BASE_URL); // 方便你除錯確認
-
-// --- 以下函式保持不變 ---
+// --- 以下函式保持功能不變 ---
 export const recognizeLicensePlate = async (base64Image: string): Promise<string> => {
-  console.log("準備發送 API，URL:", `${API_BASE_URL}/recognize/`); 
+  const endpoint = `${API_BASE_URL}/recognize/`;
+  console.log('準備發送 API，URL:', endpoint);
 
   try {
-    const res = await fetch(`${API_BASE_URL}/recognize/`, {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: base64Image })
+      body: JSON.stringify({ image: base64Image }),
     });
 
     if (!res.ok) {
-      const errorText = await res.text(); 
+      const errorText = await res.text();
       console.error('API 錯誤詳情:', res.status, errorText);
       return 'UNKNOWN';
     }
@@ -30,7 +25,7 @@ export const recognizeLicensePlate = async (base64Image: string): Promise<string
     const data = await res.json();
     return (data.plate_number || 'UNKNOWN').toString().toUpperCase();
   } catch (err) {
-    console.error('連線完全失敗 (可能是網路不通或 CORS):', err);
+    console.error('連線完全失敗:', err);
     return 'UNKNOWN';
   }
 };
