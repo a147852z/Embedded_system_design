@@ -11,11 +11,12 @@ const API_BASE_URL = '/api';
 let MOCK_SPOTS: ParkingSpot[] = Array.from({ length: 4 }, (_, i) => ({
   id: `A-${i + 1}`,
   label: `A-${i + 1}`,
-  status: i === 1 ? SpotStatus.OCCUPIED : i === 3 ? SpotStatus.ABNORMAL : SpotStatus.AVAILABLE,
+  status: SpotStatus.AVAILABLE,
   distanceRaw: 5,
   floor: 1,
   section: 'A',
-  plateNumber: i === 1 ? 'ABC-5678' : undefined,
+  plateNumber: undefined,       // <--- 強制沒有車牌
+  abnormalReason: undefined     // <--- 強制沒有異常
 }));
 
 let MOCK_LOGS: LogEntry[] = [];
