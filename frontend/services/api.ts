@@ -2,23 +2,15 @@ import { ParkingSpot, SpotStatus, LogEntry } from '../types';
 
 // --- CONFIGURATION ---
 // Set this to FALSE when your Django server is running
-// For migrating storage to backend, default to false so frontend uses real API
 const USE_MOCK_API = false;
-// Use relative path so Vite dev server proxy or production webserver can handle same-origin requests
-const API_BASE_URL = '/api';
+
+// 自動抓取當前瀏覽器的 Hostname (解決 localhost vs 192.168.x.x 問題)
+// const currentHostname = window.location.hostname;
+const API_BASE_URL = `/api`;
 
 // --- MOCK DATA (Simulating Database) ---
-let MOCK_SPOTS: ParkingSpot[] = Array.from({ length: 4 }, (_, i) => ({
-  id: `A-${i + 1}`,
-  label: `A-${i + 1}`,
-  status: SpotStatus.AVAILABLE,
-  distanceRaw: 5,
-  floor: 1,
-  section: 'A',
-  plateNumber: undefined,       // <--- 強制沒有車牌
-  abnormalReason: undefined     // <--- 強制沒有異常
-}));
-
+// 預設為空資料，若使用 Mock 模式，重置時會清空回這裡
+let MOCK_SPOTS: ParkingSpot[] = [];
 let MOCK_LOGS: LogEntry[] = [];
 
 // --- API FUNCTIONS ---
@@ -136,6 +128,30 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
+    });
+  },
+
+  /**
+   * POST /api/reset/
+   * 重置系統：清空車位與紀錄
+   */
+  resetSystem: async (): Promise<void> => {
+    if (USE_MOCK_API) {
+      // 重置 Mock 資料
+      MOCK_SPOTS = MOCK_SPOTS.map(s => ({
+        ...s,
+        status: SpotStatus.AVAILABLE,
+        plateNumber: undefined,
+        parkedTime: undefined,
+        abnormalReason: undefined
+      }));
+      MOCK_LOGS = [];
+      return;
+    }
+
+    // 呼叫真實後端重置
+    await fetch(`${API_BASE_URL}/reset/`, {
+      method: 'POST',
     });
   }
 };

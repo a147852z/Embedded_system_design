@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Info } from 'lucide-react';
+import { LayoutDashboard, Info, RotateCcw, Settings } from 'lucide-react'; // 引入 RotateCcw 和 Settings
 import { Header, StatusBadge } from '../components/Shared';
 import { ParkingSpot, SpotStatus, LogEntry } from '../types';
 import { api } from '../services/api';
@@ -34,8 +34,23 @@ const AdminView: React.FC<AdminViewProps> = ({ spots, logs, onRefresh }) => {
     }
   };
 
+  // 系統重置邏輯
+  const handleReset = async () => {
+    if (!window.confirm("⚠️ 警告：確定要重置整個系統嗎？\n\n這將會：\n1. 清空所有車位上的車輛\n2. 刪除所有操作紀錄")) {
+      return;
+    }
+    try {
+      await api.resetSystem();
+      alert("系統已重置完成！");
+      onRefresh(); // 重新抓取資料
+    } catch (e) {
+      console.error(e);
+      alert("重置失敗，請檢查後端連線");
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 pb-10"> {/* 增加 pb-10 讓底部留白 */}
       <Header title="AI-Park 後台管理" subtitle="Admin Dashboard" />
       
       <div className="container mx-auto p-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -130,6 +145,28 @@ const AdminView: React.FC<AdminViewProps> = ({ spots, logs, onRefresh }) => {
                  {spots.some(s => s.status === SpotStatus.ABNORMAL) ? "TRIGGERED" : "Idle"}
                </div>
              </div>
+          </div>
+        </div>
+
+        {/* --- [修改處] 系統重置區塊 (移到最下方) --- */}
+        <div className="bg-white p-6 rounded-xl shadow-sm lg:col-span-2 border-t-4 border-gray-200">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+             <div>
+                <h2 className="text-lg font-bold flex items-center gap-2 text-gray-800">
+                  <Settings size={20} /> 系統管理 (Danger Zone)
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                   此區域操作將會影響整個系統的資料狀態，請謹慎使用。
+                </p>
+             </div>
+             
+             <button 
+               onClick={handleReset}
+               className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors border border-red-200 shadow-sm"
+             >
+               <RotateCcw size={18} />
+               <span className="font-bold">重置資料</span>
+             </button>
           </div>
         </div>
 

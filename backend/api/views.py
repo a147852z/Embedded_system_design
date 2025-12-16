@@ -49,11 +49,15 @@ Strict Output Rules:
     }
     # print(f"LLM 辨識中 ({getattr(mp,'name',mp)})...")
     llm_url = "http://192.168.50.105:5000/generate"
-    resp = requests.post(llm_url, json=payload, timeout=30)  
-    response = resp.json().get("response", "{}")
-    plate_number_data = parse_plate_response(response)
-    print(plate_number_data["plate_number"])
-    return plate_number_data["plate_number"]
+    try:
+        resp = requests.post(llm_url, json=payload, timeout=30)  
+        response = resp.json().get("response", "{}")
+        plate_number_data = parse_plate_response(response)
+        print(plate_number_data["plate_number"])
+        return plate_number_data["plate_number"]
+    except Exception as e:
+        print(f"LLM 連線失敗: {e}")
+        return "UNKNOWN"
 
 
 class ParkingSpotViewSet(viewsets.ModelViewSet):
@@ -92,13 +96,32 @@ class RecognizePlateAPIView(APIView):
         # api_key = os.environ.get('GEMINI_API_KEY')
         if not image:
             return Response({'detail': 'image is required'}, status=status.HTTP_400_BAD_REQUEST)
-        base64_str = request.data.get('image').split('base64,')[-1]
-        response = post_to_llm(base64_str)
+        
+        try:
+            base64_str = request.data.get('image').split('base64,')[-1]
+            response = post_to_llm(base64_str)
+        except Exception as e:
+            print(e)
+            return Response({'plate_number': 'UNKNOWN'})
 
-        # if not api_key:
-        #     # No key configured: return UNKNOWN so frontend can still function in local dev
-        #     return Response({'plate_number': 'UNKNOWN'})
-
-        # TODO: Implement real call to Gemini / Google GenAI here.
-        # For now return UNKNOWN to avoid requiring external credentials in the template.
         return Response({'plate_number': response})
+
+
+class ResetSystemAPIView(APIView):
+    """
+    POST /api/reset/
+    功能：一鍵重置系統，清空所有車位並刪除紀錄
+    """
+    def post(self, request):
+        # 1. 重置所有車位狀態為 AVAILABLE (空位)
+        ParkingSpot.objects.all().update(
+            status='AVAILABLE',
+            plate_number=None,
+            parked_time=None,
+            abnormal_reason=None
+        )
+
+        # 2. 清空所有 Log 紀錄
+        LogEntry.objects.all().delete()
+
+        return Response({"message": "System reset successfully"})
