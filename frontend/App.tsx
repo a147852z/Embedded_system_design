@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ParkingSpot, SpotStatus, LogEntry } from './types';
 import ClientView from './pages/ClientView';
 import AdminView from './pages/AdminView';
+import AdminLogin, { ADMIN_AUTH_KEY } from './pages/AdminLogin';
 import { AbnormalAlertOverlay } from './components/Shared';
 import { api } from './services/api';
 
@@ -11,6 +12,12 @@ const App: React.FC = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [showAbnormalOverlay, setShowAbnormalOverlay] = useState(false);
   const lastAbnormalKey = useRef('');
+
+  // 簡單的 admin 是否登入檢查
+  const isAdminAuthed = () => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(ADMIN_AUTH_KEY) === 'true';
+  };
 
   // Fetch latest data from backend
   const refreshData = useCallback(async () => {
@@ -63,9 +70,12 @@ const App: React.FC = () => {
         )}
 
         <Routes>
-          {/* User Client View */}
+          {/* 根路徑一律導向 /client */}
+          <Route path="/" element={<Navigate to="/client" replace />} />
+
+          {/* Client View */}
           <Route 
-            path="/" 
+            path="/client" 
             element={
               <ClientView 
                 spots={spots} 
@@ -73,18 +83,28 @@ const App: React.FC = () => {
               />
             } 
           />
+
+          {/* Admin Login */}
+          <Route path="/admin/login" element={<AdminLogin />} />
           
-          {/* Admin Dashboard */}
+          {/* Admin Dashboard，未登入則轉跳到 /admin/login */}
           <Route 
             path="/admin" 
             element={
-              <AdminView 
-                spots={spots} 
-                logs={logs} 
-                onRefresh={refreshData} 
-              />
+              isAdminAuthed() ? (
+                <AdminView 
+                  spots={spots} 
+                  logs={logs} 
+                  onRefresh={refreshData} 
+                />
+              ) : (
+                <Navigate to="/admin/login" replace />
+              )
             } 
           />
+
+          {/* 未知路由也導回 /client，避免 404 */}
+          <Route path="*" element={<Navigate to="/client" replace />} />
         </Routes>
       </div>
     </Router>

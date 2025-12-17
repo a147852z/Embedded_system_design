@@ -1,6 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Map, LayoutDashboard, Siren, XCircle, AlertOctagon } from 'lucide-react';
+import { XCircle, Siren, AlertOctagon } from 'lucide-react';
 import { SpotStatus, ParkingSpot } from '../types';
 
 export const StatusBadge = ({ status }: { status: SpotStatus }) => {
@@ -23,17 +22,7 @@ export const Header = ({ title, subtitle }: { title: string; subtitle?: string }
         <h1 className="text-xl font-bold">{title}</h1>
         {subtitle && <p className="text-xs text-blue-200">{subtitle}</p>}
       </div>
-      <div className="flex gap-2">
-         {/* Navigation Links */}
-         <Link to="/" className="p-2 hover:bg-white/10 rounded flex items-center gap-1" title="用戶端 Client">
-            <Map size={20}/>
-            <span className="text-xs hidden sm:inline">Client</span>
-         </Link>
-         <Link to="/admin" className="p-2 hover:bg-white/10 rounded flex items-center gap-1" title="管理後台 Admin">
-            <LayoutDashboard size={20}/>
-            <span className="text-xs hidden sm:inline">Admin</span>
-         </Link>
-      </div>
+      {/* 原本右上角 Client/Admin 切換按鈕已移除，保留純標題區塊 */}
     </div>
   </header>
 );

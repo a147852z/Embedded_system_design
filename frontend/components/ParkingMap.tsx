@@ -8,8 +8,6 @@ interface ParkingMapProps {
   selectedSpotId?: string;
 }
 
-// ...existing code...
-
 const ParkingMap: React.FC<ParkingMapProps> = ({ spots, onSelectSpot, selectedSpotId }) => {
   // Layout: 4 Spots in a row at the top.
   // Visual Order (Left to Right): 4, 3, 2, 1.
@@ -28,7 +26,17 @@ const ParkingMap: React.FC<ParkingMapProps> = ({ spots, onSelectSpot, selectedSp
     switch (spot.status) {
       case SpotStatus.OCCUPIED:
         bgColor = 'bg-yellow-400'; // PDF: Occupied is Yellow X
-        icon = <Car className="w-8 h-8 text-gray-800" />;
+        // --- 修改重點開始：將 Icon 包裝成包含車牌的結構 ---
+        icon = (
+          <div className="flex flex-col items-center justify-center w-full">
+            <Car className="w-8 h-8 text-gray-800" />
+            {/* 車牌顯示區域 */}
+            <div className="mt-1 px-1.5 py-0.5 bg-white/40 rounded text-[11px] font-mono font-black tracking-tighter leading-tight text-gray-900 max-w-[90%] overflow-hidden text-ellipsis whitespace-nowrap shadow-sm border border-black/10">
+              {spot.plateNumber || '車牌辨識中'}
+            </div>
+          </div>
+        );
+        // --- 修改重點結束 ---
         break;
       case SpotStatus.ABNORMAL:
         bgColor = 'bg-red-500 animate-pulse'; // PDF: Abnormal is Red/Lightning
@@ -53,11 +61,13 @@ const ParkingMap: React.FC<ParkingMapProps> = ({ spots, onSelectSpot, selectedSp
         <span className="absolute top-2 left-2 text-2xl font-black text-gray-500/30 select-none">
             {displayNumber}
         </span>
+        
+        {/* 這裡會渲染我們上面定義的 icon (包含車牌) */}
         {icon}
+
         {spot.status === SpotStatus.AVAILABLE && selectedSpotId === spot.id && (
            <CheckCircle className="absolute bottom-1 right-2 w-6 h-6 text-blue-600" />
         )}
-        {/* removed priority/star indicator per request */}
       </button>
     );
   };
@@ -80,8 +90,6 @@ const ParkingMap: React.FC<ParkingMapProps> = ({ spots, onSelectSpot, selectedSp
             <div className="absolute left-0 -top-14 flex flex-col items-center">
               <ArrowDown className="w-10 h-10 text-white animate-bounce" strokeWidth={4} />
             </div>
-
-            {/* (label removed here; repositioned to driveway edges below) */}
          </div>
 
          {/* Entrance Label & Arrow (Right Bottom) */}
@@ -90,8 +98,6 @@ const ParkingMap: React.FC<ParkingMapProps> = ({ spots, onSelectSpot, selectedSp
             <div className="absolute right-0 -top-14 flex flex-col items-center">
               <ArrowUp className="w-10 h-10 text-white animate-bounce" strokeWidth={4} />
             </div>
-
-            {/* (label removed here; repositioned to driveway edges below) */}
          </div>
       </div>
 
