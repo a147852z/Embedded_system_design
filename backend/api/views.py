@@ -111,6 +111,41 @@ class RecognizePlateAPIView(APIView):
         return Response({'plate_number': response})
 
 
+import cv2
+import base64
+
+class CameraSnapshotAPIView(APIView):
+    authentication_classes = []
+    permission_classes = []
+    """
+    GET /api/camera/snapshot/
+    功能：擷取後端攝影機的即時畫面並回傳 Base64 字串
+    """
+    def get(self, request):
+        # 0 是預設攝影機，若有多個攝影機可改為 1, 2...
+        cap = cv2.VideoCapture(0)
+        
+        if not cap.isOpened():
+            return Response({"error": "Cannot open camera"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        ret, frame = cap.read()
+        cap.release()
+        
+        if not ret:
+            return Response({"error": "Failed to capture image"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        # 將圖片編碼為 JPEG
+        _, buffer = cv2.imencode('.jpg', frame)
+        
+        # 轉為 Base64 字串
+        jpg_as_text = base64.b64encode(buffer).decode('utf-8')
+        
+        # 加上 Data URI Scheme 前綴
+        base64_image = f"data:image/jpeg;base64,{jpg_as_text}"
+        
+        return Response({"image": base64_image})
+
+
 class ResetSystemAPIView(APIView):
     """
     POST /api/reset/

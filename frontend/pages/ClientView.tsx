@@ -15,6 +15,7 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
   const [selectedSpot, setSelectedSpot] = useState<ParkingSpot | null>(null);
   const [scanning, setScanning] = useState(false);
   const [plate, setPlate] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [navigationSpot, setNavigationSpot] = useState<ParkingSpot | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -30,36 +31,41 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
     setSelectedSpot(spot);
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setScanning(true);
-      setPlate(null);
-      setIsConfirmed(false);
-      setSelectedSpot(null);
+  const handleCaptureAndRecognize = async () => {
+    setScanning(true);
+    setPlate(null);
+    setCapturedImage(null);
+    setIsConfirmed(false);
+    setSelectedSpot(null);
+
+    try {
+      // 1. Get snapshot from backend camera
+      const imageBase64 = await api.getCameraSnapshot();
+      setCapturedImage(imageBase64);
+
+      // 2. Recognize plate from the snapshot
+      const recognizedPlate = await recognizeLicensePlate(imageBase64);
       
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64String = reader.result as string;
-        const recognizedPlate = await recognizeLicensePlate(base64String);
-        
-        if (recognizedPlate === 'UNKNOWN') {
-          alert("無法辨識車牌，請重新掃描一次");
-          setPlate(null);
-        } else {
-          setPlate(recognizedPlate);
-        }
-        setScanning(false);
-      };
-      reader.readAsDataURL(file);
+      if (recognizedPlate === 'UNKNOWN') {
+        alert("無法辨識車牌，請重新掃描一次");
+        setPlate(null);
+      } else {
+        setPlate(recognizedPlate);
+      }
+    } catch (error) {
+      console.error("Capture failed:", error);
+      alert("無法連接攝影機或辨識失敗");
+    } finally {
+      setScanning(false);
     }
-    event.target.value = '';
   };
 
   const handleRescan = () => {
     setPlate(null);
+    setCapturedImage(null);
     setIsConfirmed(false);
-    fileInputRef.current?.click();
+    // Instead of file input, trigger capture again
+    handleCaptureAndRecognize();
   };
 
   const handleConfirmPlate = () => {
@@ -68,6 +74,7 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
 
   const handleFinishNavigation = () => {
     setNavigationSpot(null);
+    setCapturedImage(null); // Clear image when done
   };
 
   const handleConfirmParking = async () => {
@@ -76,8 +83,6 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
         // API Call
         await api.occupySpot(selectedSpot.id, plate);
         
-        // alert("車輛已確認進場！導引路線已生成。"); // Removed alert to show map directly
-        
         // Set navigation target
         setNavigationSpot(selectedSpot);
         
@@ -85,6 +90,7 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
         setPlate(null);
         setIsConfirmed(false);
         setSelectedSpot(null);
+        // Note: capturedImage is kept until navigation is finished or new scan
         
         // Refresh data from backend
         onRefresh();
@@ -110,13 +116,13 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
         </div>
         <div>
            <button 
-             onClick={() => fileInputRef.current?.click()}
+             onClick={handleCaptureAndRecognize}
              className="flex flex-col items-center justify-center text-park-primary active:opacity-50"
            >
              <ScanLine className="w-8 h-8 mb-1"/>
              <span className="text-xs font-bold">掃描車牌</span>
            </button>
-           <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
+           {/* Hidden file input removed as we use camera API now */}
         </div>
       </div>
 
@@ -133,6 +139,18 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
                 {!isConfirmed ? (
                   <>
                     <p className="text-sm text-gray-500 mb-2">辨識結果 (請確認)</p>
+                    
+                    {/* Display Captured Image */}
+                    {capturedImage && (
+                      <div className="mb-4 flex justify-center">
+                        <img 
+                          src={capturedImage} 
+                          alt="Captured Plate" 
+                          className="max-h-48 rounded-lg border-2 border-gray-200 shadow-md object-contain"
+                        />
+                      </div>
+                    )}
+
                     <div className="text-4xl font-mono font-black text-gray-800 bg-gray-50 p-4 rounded-xl border-2 border-gray-200 inline-block mb-4 shadow-inner tracking-widest">
                       {plate}
                     </div>

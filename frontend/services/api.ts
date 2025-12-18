@@ -17,6 +17,26 @@ let MOCK_LOGS: LogEntry[] = [];
 
 export const api = {
   /**
+   * GET /api/camera/snapshot/
+   * 獲取後端攝影機的即時快照
+   */
+  getCameraSnapshot: async (): Promise<string> => {
+    if (USE_MOCK_API) {
+      // Mock: Return a placeholder image
+      return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    }
+    try {
+      const response = await fetch(`${API_BASE_URL}/camera/snapshot/`);
+      if (!response.ok) throw new Error('Failed to fetch snapshot');
+      const data = await response.json();
+      return data.image; // Expecting base64 string
+    } catch (error) {
+      console.error('Error fetching camera snapshot:', error);
+      throw error;
+    }
+  },
+
+  /**
    * GET /api/spots/
    */
   fetchSpots: async (): Promise<ParkingSpot[]> => {
