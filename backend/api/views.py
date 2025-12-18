@@ -61,6 +61,8 @@ Strict Output Rules:
 
 
 class ParkingSpotViewSet(viewsets.ModelViewSet):
+    authentication_classes = []
+    permission_classes = []
     queryset = ParkingSpot.objects.all().order_by('id')
     serializer_class = ParkingSpotSerializer
 
@@ -84,6 +86,8 @@ class LogEntryViewSet(viewsets.ModelViewSet):
 
 
 class RecognizePlateAPIView(APIView):
+    authentication_classes = []
+    permission_classes = []
     """
     POST /api/recognize/
     Body: { "image": "data:image/jpeg;base64,..." }

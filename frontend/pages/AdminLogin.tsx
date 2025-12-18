@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/Shared';
 
 const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = 'qqq123';
+const ADMIN_PASSWORD = 'root';
 const ADMIN_AUTH_KEY = 'ai_park_admin_authed';
 
 const AdminLogin: React.FC = () => {
@@ -39,7 +39,7 @@ const AdminLogin: React.FC = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="admin"
+                placeholder="account"
               />
             </div>
             <div>
@@ -49,7 +49,7 @@ const AdminLogin: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="qqq123"
+                placeholder="password"
               />
             </div>
             {error && (

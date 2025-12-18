@@ -16,6 +16,7 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
   const [scanning, setScanning] = useState(false);
   const [plate, setPlate] = useState<string | null>(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
+  const [navigationSpot, setNavigationSpot] = useState<ParkingSpot | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filter available spots count
@@ -41,7 +42,13 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
       reader.onloadend = async () => {
         const base64String = reader.result as string;
         const recognizedPlate = await recognizeLicensePlate(base64String);
-        setPlate(recognizedPlate);
+        
+        if (recognizedPlate === 'UNKNOWN') {
+          alert("無法辨識車牌，請重新掃描一次");
+          setPlate(null);
+        } else {
+          setPlate(recognizedPlate);
+        }
         setScanning(false);
       };
       reader.readAsDataURL(file);
@@ -59,13 +66,20 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
     setIsConfirmed(true);
   };
 
+  const handleFinishNavigation = () => {
+    setNavigationSpot(null);
+  };
+
   const handleConfirmParking = async () => {
     if (selectedSpot && plate && isConfirmed) {
       try {
         // API Call
         await api.occupySpot(selectedSpot.id, plate);
         
-        alert("車輛已確認進場！導引路線已生成。");
+        // alert("車輛已確認進場！導引路線已生成。"); // Removed alert to show map directly
+        
+        // Set navigation target
+        setNavigationSpot(selectedSpot);
         
         // Reset local UI state
         setPlate(null);
@@ -192,6 +206,38 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
           >
             關閉
           </button>
+        </div>
+      )}
+
+      {/* Navigation Modal */}
+      {navigationSpot && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-lg rounded-3xl p-6 space-y-6 shadow-2xl">
+            <div className="text-center space-y-2">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-2">
+                <Check className="w-8 h-8 text-green-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-800">車位已確認！</h2>
+              <p className="text-gray-600 text-lg">
+                請依照路線前往 <span className="font-bold text-blue-600 text-xl">{navigationSpot.label}</span>
+              </p>
+            </div>
+            
+            <div className="transform scale-95">
+              <ParkingMap 
+                spots={spots} 
+                onSelectSpot={() => {}} 
+                navigationTargetId={navigationSpot.id}
+              />
+            </div>
+
+            <button
+              onClick={handleFinishNavigation}
+              className="w-full py-4 bg-blue-600 text-white text-xl font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg active:scale-95"
+            >
+              完成導航
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -6,13 +6,83 @@ interface ParkingMapProps {
   spots: ParkingSpot[];
   onSelectSpot: (spot: ParkingSpot) => void;
   selectedSpotId?: string;
+  navigationTargetId?: string;
 }
 
-const ParkingMap: React.FC<ParkingMapProps> = ({ spots, onSelectSpot, selectedSpotId }) => {
+const ParkingMap: React.FC<ParkingMapProps> = ({ spots, onSelectSpot, selectedSpotId, navigationTargetId }) => {
   // Layout: 4 Spots in a row at the top.
   // Visual Order (Left to Right): 4, 3, 2, 1.
   // Data Order: 1 (Index 0), 2, 3, 4.
   // CSS `flex-row-reverse` will achieve the [4][3][2][1] visual layout.
+
+  // Helper to get X position percentage for a spot index (0-based from data array)
+  // Index 0 (Spot 1) is rightmost (~88%)
+  // Index 3 (Spot 4) is leftmost (~12%)
+  const getSpotXPercent = (index: number) => {
+    // Total 4 spots.
+    // 0 -> 88
+    // 1 -> 63
+    // 2 -> 38
+    // 3 -> 13
+    return 88 - (index * 25);
+  };
+
+  const renderRouteOverlay = () => {
+    if (!navigationTargetId) return null;
+
+    const targetIndex = spots.findIndex(s => s.id === navigationTargetId);
+    if (targetIndex === -1) return null;
+
+    const targetX = getSpotXPercent(targetIndex);
+    const startX = 90; // Entry X
+    const startY = 90; // Entry Y (bottom area)
+    const laneY = 60;  // Driving lane Y
+    const spotY = 25;  // Spot center Y
+
+    // Path: Start -> Up to Lane -> Left/Right to Spot X -> Up to Spot
+    const pathData = `
+      M ${startX} ${startY}
+      L ${startX} ${laneY}
+      L ${targetX} ${laneY}
+      L ${targetX} ${spotY}
+    `;
+
+    return (
+      <div className="absolute inset-0 pointer-events-none z-30">
+        <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <defs>
+            <marker id="arrowhead" markerWidth="4" markerHeight="4" refX="2" refY="2" orient="auto">
+              <polygon points="0 0, 4 2, 0 4" fill="#3b82f6" />
+            </marker>
+          </defs>
+          {/* Glow effect */}
+          <path d={pathData} fill="none" stroke="#60a5fa" strokeWidth="2" strokeOpacity="0.5" />
+          {/* Main path */}
+          <path 
+            d={pathData} 
+            fill="none" 
+            stroke="#2563eb" 
+            strokeWidth="1" 
+            strokeDasharray="2 2"
+            markerEnd="url(#arrowhead)"
+            className="animate-dash"
+          />
+          {/* Start point dot */}
+          <circle cx={startX} cy={startY} r="1.5" fill="#2563eb" />
+        </svg>
+        <style>{`
+          @keyframes dash {
+            to {
+              stroke-dashoffset: -20;
+            }
+          }
+          .animate-dash {
+            animation: dash 1s linear infinite;
+          }
+        `}</style>
+      </div>
+    );
+  };
 
   const renderSpot = (spot: ParkingSpot) => {
     let bgColor = 'bg-white';
@@ -119,6 +189,7 @@ const ParkingMap: React.FC<ParkingMapProps> = ({ spots, onSelectSpot, selectedSp
           <div className="w-full h-1 bg-yellow-500/50 mx-2 rounded-full"></div>
       </div>
 
+      {renderRouteOverlay()}
     </div>
   );
 };
