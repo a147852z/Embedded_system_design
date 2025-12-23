@@ -229,19 +229,19 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
 
       {/* Navigation Modal */}
       {navigationSpot && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-lg rounded-3xl p-6 space-y-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4 animate-in fade-in duration-200 overflow-y-auto">
+          <div className="bg-white w-full max-w-lg rounded-3xl p-4 md:p-6 space-y-4 md:space-y-6 shadow-2xl my-auto">
             <div className="text-center space-y-2">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-2">
-                <Check className="w-8 h-8 text-green-600" />
+              <div className="inline-flex items-center justify-center w-12 h-12 md:w-16 md:h-16 bg-green-100 rounded-full mb-2">
+                <Check className="w-6 h-6 md:w-8 md:h-8 text-green-600" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-800">車位已確認！</h2>
-              <p className="text-gray-600 text-lg">
-                請依照路線前往 <span className="font-bold text-blue-600 text-xl">{navigationSpot.label}</span>
+              <h2 className="text-xl md:text-2xl font-bold text-gray-800">車位已確認！</h2>
+              <p className="text-gray-600 text-base md:text-lg">
+                請依照路線前往 <span className="font-bold text-blue-600 text-lg md:text-xl">{navigationSpot.label}</span>
               </p>
             </div>
             
-            <div className="transform scale-95">
+            <div className="w-full">
               <ParkingMap 
                 spots={spots} 
                 onSelectSpot={() => {}} 
@@ -251,7 +251,7 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
 
             <button
               onClick={handleFinishNavigation}
-              className="w-full py-4 bg-blue-600 text-white text-xl font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg active:scale-95"
+              className="w-full py-3 md:py-4 bg-blue-600 text-white text-lg md:text-xl font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg active:scale-95"
             >
               完成導航
             </button>

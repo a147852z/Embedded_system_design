@@ -126,7 +126,7 @@ const ParkingMap: React.FC<ParkingMapProps> = ({ spots, onSelectSpot, selectedSp
       <button
         key={spot.id}
         onClick={() => onSelectSpot(spot)}
-        className={`relative flex-1 h-32 rounded-lg border-4 ${borderColor} ${bgColor} flex flex-col items-center justify-center transition-all shadow-md active:scale-95`}
+        className={`relative flex-1 h-full rounded-lg border-4 ${borderColor} ${bgColor} flex flex-col items-center justify-center transition-all shadow-md active:scale-95`}
       >
         <span className="absolute top-2 left-2 text-2xl font-black text-gray-500/30 select-none">
             {displayNumber}
@@ -143,49 +143,52 @@ const ParkingMap: React.FC<ParkingMapProps> = ({ spots, onSelectSpot, selectedSp
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto bg-gray-600 p-6 rounded-3xl shadow-2xl relative border-8 border-gray-700">
+    <div className="w-full max-w-lg mx-auto bg-gray-600 rounded-3xl shadow-2xl relative border-8 border-gray-700 aspect-[5/4] flex flex-col p-[4%]">
       
       {/* Top Row: Spots 4-3-2-1 */}
       {/* flex-row-reverse makes [1,2,3,4] render as [4][3][2][1] */}
-      <div className="flex flex-row-reverse gap-3 mb-12">
+      <div className="flex flex-row-reverse gap-[2%] h-[45%] w-full z-10">
         {spots.map(renderSpot)}
       </div>
 
+      {/* Spacer for Gap */}
+      <div className="h-[11%] w-full"></div>
+
       {/* Driveway Area */}
-      <div className="relative h-40 w-full mt-4">
+      <div className="relative h-[39%] w-full">
          
          {/* Exit Label & Arrow (Left Bottom) */}
-         <div className="absolute bottom-2 left-7 flex flex-col items-center">
-            {/* Exit arrow above gate (keep original position) */}
-            <div className="absolute left-0 -top-14 flex flex-col items-center">
-              <ArrowDown className="w-10 h-10 text-white animate-bounce" strokeWidth={4} />
+         <div className="absolute bottom-[10%] left-[10%] flex flex-col items-center">
+            {/* Exit arrow above gate */}
+            <div className="absolute left-0 -top-[200%] flex flex-col items-center">
+              <ArrowDown className="w-8 h-8 md:w-10 md:h-10 text-white animate-bounce" strokeWidth={4} />
             </div>
          </div>
 
          {/* Entrance Label & Arrow (Right Bottom) */}
-         <div className="absolute bottom-2 right-8 flex flex-col items-center">
-            {/* Entry arrow above gate (keep original position) */}
-            <div className="absolute right-0 -top-14 flex flex-col items-center">
-              <ArrowUp className="w-10 h-10 text-white animate-bounce" strokeWidth={4} />
+         <div className="absolute bottom-[10%] right-[10%] flex flex-col items-center">
+            {/* Entry arrow above gate */}
+            <div className="absolute right-0 -top-[200%] flex flex-col items-center">
+              <ArrowUp className="w-8 h-8 md:w-10 md:h-10 text-white animate-bounce" strokeWidth={4} />
             </div>
          </div>
       </div>
 
-      {/* EXIT / ENTRY labels placed near parking area's bottom edge (inside red-circled areas) */}
-      <div className="absolute -bottom-4 left-6 z-20">
+      {/* EXIT / ENTRY labels */}
+      <div className="absolute bottom-[-4%] left-[6%] z-20">
         <div className="flex items-center gap-2 bg-gray-800/90 p-1.5 rounded-full border border-gray-500 shadow-lg">
-          <span className="text-white font-bold px-2 text-xs tracking-widest whitespace-nowrap">出口 EXIT</span>
+          <span className="text-white font-bold px-2 text-[10px] md:text-xs tracking-widest whitespace-nowrap">出口 EXIT</span>
         </div>
       </div>
 
-      <div className="absolute -bottom-4 right-6 z-20">
+      <div className="absolute bottom-[-4%] right-[6%] z-20">
         <div className="flex items-center gap-2 bg-gray-800/90 p-1.5 rounded-full border border-gray-500 shadow-lg">
-          <span className="text-white font-bold px-2 text-xs tracking-widest whitespace-nowrap">入口 ENTRY</span>
+          <span className="text-white font-bold px-2 text-[10px] md:text-xs tracking-widest whitespace-nowrap">入口 ENTRY</span>
         </div>
       </div>
 
       {/* Bottom Gate/Structure (Center) */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-40 h-8 bg-gray-800 border-4 border-gray-600 rounded-lg flex items-center justify-center shadow-xl z-10">
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-[40%] h-[8%] bg-gray-800 border-4 border-gray-600 rounded-lg flex items-center justify-center shadow-xl z-10">
           <div className="w-full h-1 bg-yellow-500/50 mx-2 rounded-full"></div>
       </div>
 
