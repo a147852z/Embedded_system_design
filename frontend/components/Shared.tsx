@@ -4,23 +4,23 @@ import { SpotStatus, ParkingSpot } from '../types';
 
 export const StatusBadge = ({ status }: { status: SpotStatus }) => {
   const styles = {
-    [SpotStatus.AVAILABLE]: 'bg-green-100 text-green-800 border-green-200',
-    [SpotStatus.OCCUPIED]: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    [SpotStatus.ABNORMAL]: 'bg-red-100 text-red-800 border-red-200',
+    [SpotStatus.AVAILABLE]: 'bg-green-100 text-green-800 border-green-300',
+    [SpotStatus.OCCUPIED]: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    [SpotStatus.ABNORMAL]: 'bg-red-100 text-red-800 border-red-300',
   };
   return (
-    <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${styles[status]}`}>
+    <span className={`px-3 py-1.5 rounded-full text-xs font-bold border-2 ${styles[status]} shadow-sm`}>
       {status}
     </span>
   );
 };
 
 export const Header = ({ title, subtitle }: { title: string; subtitle?: string }) => (
-  <header className="bg-park-primary text-white p-4 sticky top-0 z-50 shadow-md">
+  <header className="bg-gradient-to-r from-park-primary to-blue-700 text-white p-4 sticky top-0 z-50 shadow-lg">
     <div className="container mx-auto flex justify-between items-center">
       <div>
-        <h1 className="text-xl font-bold">{title}</h1>
-        {subtitle && <p className="text-xs text-blue-200">{subtitle}</p>}
+        <h1 className="text-xl md:text-2xl font-bold">{title}</h1>
+        {subtitle && <p className="text-xs md:text-sm text-blue-100 mt-0.5 opacity-90">{subtitle}</p>}
       </div>
       {/* 原本右上角 Client/Admin 切換按鈕已移除，保留純標題區塊 */}
     </div>

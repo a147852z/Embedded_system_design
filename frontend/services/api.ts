@@ -26,12 +26,16 @@ export const api = {
       return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
     }
     try {
+      const requestStartTime = Date.now();
+      console.log(`[前端] 發送相機快照請求，時間: ${new Date().toISOString()}`);
       const response = await fetch(`${API_BASE_URL}/camera/snapshot/`);
+      const requestTime = Date.now() - requestStartTime;
+      console.log(`[前端] 相機快照響應，耗時: ${requestTime}ms，狀態: ${response.status}`);
       if (!response.ok) throw new Error('Failed to fetch snapshot');
       const data = await response.json();
       return data.image; // Expecting base64 string
     } catch (error) {
-      console.error('Error fetching camera snapshot:', error);
+      console.error('[前端] 獲取相機快照失敗:', error);
       throw error;
     }
   },

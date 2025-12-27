@@ -32,6 +32,9 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
   };
 
   const handleCaptureAndRecognize = async () => {
+    const startTime = Date.now();
+    console.log('[前端] 開始掃描車牌流程', new Date().toISOString());
+    
     setScanning(true);
     setPlate(null);
     setCapturedImage(null);
@@ -40,11 +43,22 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
 
     try {
       // 1. Get snapshot from backend camera
+      const snapshotStartTime = Date.now();
+      console.log('[前端] 發送相機快照請求...');
       const imageBase64 = await api.getCameraSnapshot();
+      const snapshotTime = Date.now() - snapshotStartTime;
+      console.log(`[前端] 相機快照完成，耗時: ${snapshotTime}ms`);
       setCapturedImage(imageBase64);
 
       // 2. Recognize plate from the snapshot
+      const recognizeStartTime = Date.now();
+      console.log('[前端] 發送車牌識別請求到後端...');
       const recognizedPlate = await recognizeLicensePlate(imageBase64);
+      const recognizeTime = Date.now() - recognizeStartTime;
+      console.log(`[前端] 車牌識別完成，耗時: ${recognizeTime}ms，結果: ${recognizedPlate}`);
+      
+      const totalTime = Date.now() - startTime;
+      console.log(`[前端] 總流程耗時: ${totalTime}ms`);
       
       if (recognizedPlate === 'UNKNOWN') {
         alert("無法辨識車牌，請重新掃描一次");
@@ -53,7 +67,7 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
         setPlate(recognizedPlate);
       }
     } catch (error) {
-      console.error("Capture failed:", error);
+      console.error("[前端] 掃描失敗:", error);
       alert("無法連接攝影機或辨識失敗");
     } finally {
       setScanning(false);
@@ -104,68 +118,79 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
     <div className="pb-24 min-h-screen bg-park-bg">
       <Header title="AI-Park" subtitle="智能停車引導系統 (Client)" />
 
-      {/* Stats Bar */}
-      <div className="bg-white p-4 shadow-sm flex justify-around text-center mb-4">
-        <div>
-          <span className="block text-2xl font-bold text-green-600">{availableCount}</span>
-          <span className="text-xs text-gray-500">剩餘車位</span>
-        </div>
-        <div>
-          <span className="block text-2xl font-bold text-blue-600">{spots.length}</span>
-          <span className="text-xs text-gray-500">總車位</span>
-        </div>
-        <div>
-           <button 
-             onClick={handleCaptureAndRecognize}
-             className="flex flex-col items-center justify-center text-park-primary active:opacity-50"
-           >
-             <ScanLine className="w-8 h-8 mb-1"/>
-             <span className="text-xs font-bold">掃描車牌</span>
-           </button>
-           {/* Hidden file input removed as we use camera API now */}
+      {/* Stats Bar - 優化後的統計欄 */}
+      <div className="bg-white mx-4 mt-4 rounded-2xl shadow-md overflow-hidden">
+        <div className="grid grid-cols-3 gap-4 p-4">
+          <div className="text-center">
+            <span className="block text-3xl font-bold text-green-600 mb-1">{availableCount}</span>
+            <span className="text-xs text-gray-600 font-medium">剩餘車位</span>
+          </div>
+          <div className="text-center border-x border-gray-100">
+            <span className="block text-3xl font-bold text-blue-600 mb-1">{spots.length}</span>
+            <span className="text-xs text-gray-600 font-medium">總車位</span>
+          </div>
+          <div className="text-center">
+            <button 
+              onClick={handleCaptureAndRecognize}
+              disabled={scanning}
+              className="w-full flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl bg-gradient-to-br from-park-primary to-park-secondary text-white hover:from-blue-700 hover:to-blue-500 active:scale-95 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ScanLine className="w-6 h-6"/>
+              <span className="text-xs font-bold">掃描車牌</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* License Plate Recognition & Confirmation Modal */}
+      {/* License Plate Recognition & Confirmation Modal - 優化後的車牌識別卡片 */}
       {(scanning || plate) && (
-        <div className="mx-4 mb-4 bg-white rounded-lg p-4 shadow-lg border border-blue-100 animate-in fade-in slide-in-from-top-4">
+        <div className="mx-4 mt-4 mb-4 bg-white rounded-2xl p-5 shadow-lg border border-gray-100 animate-in fade-in slide-in-from-top-4">
            {scanning ? (
-             <div className="flex items-center justify-center gap-3 text-blue-600 py-4">
-               <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-               <span className="font-bold">AI 辨識車牌中</span>
+             <div className="flex flex-col items-center justify-center gap-4 py-6">
+               <div className="w-12 h-12 border-4 border-park-primary border-t-transparent rounded-full animate-spin"></div>
+               <div className="text-center">
+                 <span className="block text-lg font-bold text-gray-800 mb-1">AI 辨識車牌中</span>
+                 <span className="text-sm text-gray-500">請稍候...</span>
+               </div>
              </div>
            ) : (
-             <div className="text-center">
+             <div className="space-y-4">
                 {!isConfirmed ? (
                   <>
-                    <p className="text-sm text-gray-500 mb-2">辨識結果 (請確認)</p>
-                    
-                    {/* Display Captured Image */}
-                    {capturedImage && (
-                      <div className="mb-4 flex justify-center">
-                        <img 
-                          src={capturedImage} 
-                          alt="Captured Plate" 
-                          className="max-h-48 rounded-lg border-2 border-gray-200 shadow-md object-contain"
-                        />
-                      </div>
-                    )}
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600 mb-3 font-medium">辨識結果 (請確認)</p>
+                      
+                      {/* Display Captured Image */}
+                      {capturedImage && (
+                        <div className="mb-4 flex justify-center">
+                          <div className="relative rounded-xl overflow-hidden border-2 border-gray-200 shadow-lg">
+                            <img 
+                              src={capturedImage} 
+                              alt="Captured Plate" 
+                              className="max-h-48 object-contain bg-gray-50"
+                            />
+                          </div>
+                        </div>
+                      )}
 
-                    <div className="text-4xl font-mono font-black text-gray-800 bg-gray-50 p-4 rounded-xl border-2 border-gray-200 inline-block mb-4 shadow-inner tracking-widest">
-                      {plate}
+                      <div className="inline-block mb-4">
+                        <div className="text-5xl font-mono font-black text-gray-900 bg-gradient-to-br from-gray-50 to-gray-100 p-5 rounded-2xl border-2 border-gray-300 shadow-inner tracking-widest">
+                          {plate}
+                        </div>
+                      </div>
                     </div>
                     
-                    <div className="flex gap-3 justify-center">
+                    <div className="flex gap-3">
                       <button 
                         onClick={handleRescan}
-                        className="flex-1 max-w-[140px] flex items-center justify-center gap-2 bg-gray-100 text-gray-700 py-2.5 rounded-lg font-bold hover:bg-gray-200 transition-colors"
+                        className="flex-1 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 active:scale-95 transition-all"
                       >
                         <RotateCcw size={18} />
                         重新掃描
                       </button>
                       <button 
                         onClick={handleConfirmPlate}
-                        className="flex-1 max-w-[140px] flex items-center justify-center gap-2 bg-park-primary text-white py-2.5 rounded-lg font-bold hover:bg-blue-800 transition-colors shadow-md"
+                        className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-park-primary to-park-secondary text-white py-3 rounded-xl font-bold hover:from-blue-700 hover:to-blue-500 shadow-md active:scale-95 transition-all"
                       >
                         <Check size={18} />
                         確認正確
@@ -174,19 +199,23 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
                   </>
                 ) : (
                   <>
-                    <div className="flex items-center justify-center gap-2 text-green-600 font-bold mb-2">
-                       <Check size={20} className="border-2 border-green-600 rounded-full p-0.5" />
-                       <span>車牌已確認: {plate}</span>
+                    <div className="flex items-center justify-center gap-2 text-green-600 font-bold mb-3 p-3 bg-green-50 rounded-xl">
+                       <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center">
+                         <Check size={18} className="text-white" />
+                       </div>
+                       <span className="text-lg">車牌已確認: <span className="font-mono text-xl">{plate}</span></span>
                     </div>
-                    <p className="text-gray-800 font-bold text-lg animate-pulse">
-                      👇 請點擊下方地圖選擇您的車位
-                    </p>
+                    <div className="text-center p-4 bg-blue-50 rounded-xl border border-blue-100">
+                      <p className="text-gray-800 font-bold text-base mb-1">
+                        👇 請點擊下方地圖選擇您的車位
+                      </p>
+                    </div>
                     
                     {selectedSpot && selectedSpot.status === SpotStatus.AVAILABLE && (
-                      <div className="mt-4 pt-4 border-t border-gray-100 animate-in fade-in slide-in-from-bottom-2">
+                      <div className="mt-4 pt-4 border-t border-gray-200 animate-in fade-in slide-in-from-bottom-2">
                         <button 
                           onClick={handleConfirmParking}
-                          className="w-full bg-park-secondary text-white py-3 rounded-xl font-bold hover:bg-blue-600 shadow-lg text-lg"
+                          className="w-full bg-gradient-to-r from-park-secondary to-park-primary text-white py-4 rounded-xl font-bold hover:from-blue-500 hover:to-blue-700 shadow-lg text-lg active:scale-95 transition-all"
                         >
                           確認停入 {selectedSpot.label}
                         </button>
@@ -200,48 +229,55 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
       )}
 
       {/* Main Map */}
-      <div className="px-2">
+      <div className="px-4 mt-2">
         <ParkingMap spots={spots} onSelectSpot={handleSpotClick} selectedSpotId={selectedSpot?.id} />
       </div>
 
-      {/* Persistent Bottom Sheet */}
+      {/* Persistent Bottom Sheet - 優化後的底部卡片 */}
       {selectedSpot && !plate && (
-        <div className="fixed bottom-0 left-0 w-full bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.1)] rounded-t-2xl z-40 p-5 transform transition-transform duration-300">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-               <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                 車位 {selectedSpot.label}
-               </h3>
-               <p className="text-gray-500 text-sm">
-                 距離入口約 {selectedSpot.distanceRaw} 公尺
-               </p>
+        <div className="fixed bottom-0 left-0 w-full bg-white shadow-[0_-8px_30px_rgba(0,0,0,0.12)] rounded-t-3xl z-40 transform transition-transform duration-300">
+          <div className="p-5">
+            {/* Handle bar */}
+            <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
+            
+            <div className="flex justify-between items-start mb-5">
+              <div className="flex-1">
+                 <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2 mb-2">
+                   車位 {selectedSpot.label}
+                 </h3>
+                 <div className="flex items-center gap-2 text-gray-600">
+                   <span className="text-sm">📍 距離入口約</span>
+                   <span className="text-base font-bold text-park-primary">{selectedSpot.distanceRaw} 公尺</span>
+                 </div>
+              </div>
+              <StatusBadge status={selectedSpot.status} />
             </div>
-            <StatusBadge status={selectedSpot.status} />
+            <button 
+              onClick={() => setSelectedSpot(null)}
+              className="w-full bg-gray-100 text-gray-700 py-3.5 rounded-xl font-bold hover:bg-gray-200 active:scale-95 transition-all"
+            >
+              關閉
+            </button>
           </div>
-          <button 
-            onClick={() => setSelectedSpot(null)}
-            className="w-full bg-gray-200 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-300"
-          >
-            關閉
-          </button>
         </div>
       )}
 
-      {/* Navigation Modal */}
+      {/* Navigation Modal - 優化後的導航模態框 */}
       {navigationSpot && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4 animate-in fade-in duration-200 overflow-y-auto">
-          <div className="bg-white w-full max-w-lg rounded-3xl p-4 md:p-6 space-y-4 md:space-y-6 shadow-2xl my-auto">
-            <div className="text-center space-y-2">
-              <div className="inline-flex items-center justify-center w-12 h-12 md:w-16 md:h-16 bg-green-100 rounded-full mb-2">
-                <Check className="w-6 h-6 md:w-8 md:h-8 text-green-600" />
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 animate-in fade-in duration-200 overflow-y-auto">
+          <div className="bg-white w-full max-w-lg rounded-3xl p-5 md:p-6 space-y-5 md:space-y-6 shadow-2xl my-auto">
+            <div className="text-center space-y-3">
+              <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full mb-2 shadow-lg">
+                <Check className="w-8 h-8 md:w-10 md:h-10 text-white" strokeWidth={3} />
               </div>
-              <h2 className="text-xl md:text-2xl font-bold text-gray-800">車位已確認！</h2>
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">車位已確認！</h2>
               <p className="text-gray-600 text-base md:text-lg">
-                請依照路線前往 <span className="font-bold text-blue-600 text-lg md:text-xl">{navigationSpot.label}</span>
+                請依照路線前往 
+                <span className="font-bold text-park-primary text-lg md:text-xl ml-1">{navigationSpot.label}</span>
               </p>
             </div>
             
-            <div className="w-full">
+            <div className="w-full rounded-2xl overflow-hidden border-2 border-gray-200 shadow-inner">
               <ParkingMap 
                 spots={spots} 
                 onSelectSpot={() => {}} 
@@ -251,7 +287,7 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
 
             <button
               onClick={handleFinishNavigation}
-              className="w-full py-3 md:py-4 bg-blue-600 text-white text-lg md:text-xl font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg active:scale-95"
+              className="w-full py-4 md:py-5 bg-gradient-to-r from-park-secondary to-park-primary text-white text-lg md:text-xl font-bold rounded-xl hover:from-blue-500 hover:to-blue-700 transition-all shadow-lg active:scale-95"
             >
               完成導航
             </button>

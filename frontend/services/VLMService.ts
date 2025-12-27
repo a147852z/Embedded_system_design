@@ -7,7 +7,8 @@ console.log('當前 API 設定為:', API_BASE_URL);
 // --- 以下函式保持功能不變 ---
 export const recognizeLicensePlate = async (base64Image: string): Promise<string> => {
   const endpoint = `${API_BASE_URL}/recognize/`;
-  console.log('準備發送 API，URL:', endpoint);
+  const requestStartTime = Date.now();
+  console.log(`[前端] 準備發送車牌識別請求，URL: ${endpoint}，時間: ${new Date().toISOString()}`);
 
   try {
     const res = await fetch(endpoint, {
@@ -16,16 +17,21 @@ export const recognizeLicensePlate = async (base64Image: string): Promise<string
       body: JSON.stringify({ image: base64Image }),
     });
 
+    const requestTime = Date.now() - requestStartTime;
+    console.log(`[前端] 收到後端響應，耗時: ${requestTime}ms，狀態: ${res.status}`);
+
     if (!res.ok) {
       const errorText = await res.text();
-      console.error('API 錯誤詳情:', res.status, errorText);
+      console.error('[前端] API 錯誤詳情:', res.status, errorText);
       return 'UNKNOWN';
     }
 
     const data = await res.json();
+    console.log(`[前端] 識別結果: ${data.plate_number}`);
     return (data.plate_number || 'UNKNOWN').toString().toUpperCase();
   } catch (err) {
-    console.error('連線完全失敗:', err);
+    const requestTime = Date.now() - requestStartTime;
+    console.error(`[前端] 連線完全失敗，耗時: ${requestTime}ms，錯誤:`, err);
     return 'UNKNOWN';
   }
 };

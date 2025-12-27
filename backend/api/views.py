@@ -30,6 +30,9 @@ def parse_plate_response(ai_response_text):
         return {"plate_number": "UNKNOWN"}
     
 def post_to_llm(image_base64: str) -> str:
+    import time
+    llm_start_time = time.time()
+    
     prompt = """Role: You are an Automated License Plate Recognition (ALPR) system.
 Task: Analyze the provided image and extract the vehicle license plate number.
 
@@ -47,16 +50,26 @@ Strict Output Rules:
         "text_query": prompt,
         "image_base64": image_base64,
     }
-    # print(f"LLM 辨識中 ({getattr(mp,'name',mp)})...")
     llm_url = "http://192.168.50.105:5000/generate"
+    print(f"[後端] 發送請求到 LLM 服務: {llm_url}，時間: {datetime.now().isoformat()}")
     try:
-        resp = requests.post(llm_url, json=payload, timeout=30)  
+        request_start = time.time()
+        resp = requests.post(llm_url, json=payload, timeout=30)
+        request_time = (time.time() - request_start) * 1000
+        print(f"[後端] LLM 服務響應，耗時: {request_time:.2f}ms，狀態: {resp.status_code}")
+        
+        parse_start = time.time()
         response = resp.json().get("response", "{}")
         plate_number_data = parse_plate_response(response)
-        print(plate_number_data["plate_number"])
+        parse_time = (time.time() - parse_start) * 1000
+        print(f"[後端] LLM 響應解析，耗時: {parse_time:.2f}ms")
+        
+        total_llm_time = (time.time() - llm_start_time) * 1000
+        print(f"[後端] LLM 總處理時間: {total_llm_time:.2f}ms，結果: {plate_number_data['plate_number']}")
         return plate_number_data["plate_number"]
     except Exception as e:
-        print(f"LLM 連線失敗: {e}")
+        total_llm_time = (time.time() - llm_start_time) * 1000
+        print(f"[後端] LLM 連線失敗，耗時: {total_llm_time:.2f}ms，錯誤: {e}")
         return "UNKNOWN"
 
 
@@ -94,18 +107,33 @@ class RecognizePlateAPIView(APIView):
     Returns: { "plate_number": "ABC-1234" }
     """
     def post(self, request, format=None):
+        import time
+        request_start_time = time.time()
+        print(f"[後端] 收到車牌識別請求，時間: {datetime.now().isoformat()}")
+        
         data = request.data
         image = data.get('image')
-        print("TEST")
         # api_key = os.environ.get('GEMINI_API_KEY')
         if not image:
             return Response({'detail': 'image is required'}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
+            parse_start_time = time.time()
             base64_str = request.data.get('image').split('base64,')[-1]
+            parse_time = (time.time() - parse_start_time) * 1000
+            print(f"[後端] 圖片解析完成，耗時: {parse_time:.2f}ms")
+            
+            llm_start_time = time.time()
+            print(f"[後端] 開始調用 LLM 服務...")
             response = post_to_llm(base64_str)
+            llm_time = (time.time() - llm_start_time) * 1000
+            print(f"[後端] LLM 服務響應完成，耗時: {llm_time:.2f}ms，結果: {response}")
+            
+            total_time = (time.time() - request_start_time) * 1000
+            print(f"[後端] 總處理時間: {total_time:.2f}ms")
         except Exception as e:
-            print(e)
+            total_time = (time.time() - request_start_time) * 1000
+            print(f"[後端] 處理失敗，耗時: {total_time:.2f}ms，錯誤: {e}")
             return Response({'plate_number': 'UNKNOWN'})
 
         return Response({'plate_number': response})
@@ -113,6 +141,52 @@ class RecognizePlateAPIView(APIView):
 
 import cv2
 import base64
+import threading
+
+# 全局相機管理器：保持相機連接打開，避免每次重新初始化
+_camera_lock = threading.Lock()
+_camera_instance = None
+_camera_last_used = None
+
+def get_camera():
+    """
+    獲取相機實例（單例模式）
+    保持相機連接打開，避免重複初始化造成的延遲
+    """
+    import time
+    global _camera_instance, _camera_last_used
+    
+    with _camera_lock:
+        # 如果相機未初始化或已關閉，則重新打開
+        if _camera_instance is None or not _camera_instance.isOpened():
+            print("[後端] 初始化相機連接...")
+            init_start = time.time()
+            _camera_instance = cv2.VideoCapture(0)
+            init_time = (time.time() - init_start) * 1000
+            
+            if not _camera_instance.isOpened():
+                print(f"[後端] ❌ 無法開啟相機，耗時: {init_time:.2f}ms")
+                _camera_instance = None
+                return None
+            
+            print(f"[後端] ✅ 相機初始化完成，耗時: {init_time:.2f}ms")
+            _camera_last_used = time.time()
+        else:
+            # 相機已打開，直接使用
+            _camera_last_used = time.time()
+        
+        return _camera_instance
+
+def release_camera():
+    """
+    釋放相機資源（可選，用於清理）
+    """
+    global _camera_instance
+    with _camera_lock:
+        if _camera_instance is not None:
+            _camera_instance.release()
+            _camera_instance = None
+            print("[後端] 相機已釋放")
 
 class CameraSnapshotAPIView(APIView):
     authentication_classes = []
@@ -120,28 +194,61 @@ class CameraSnapshotAPIView(APIView):
     """
     GET /api/camera/snapshot/
     功能：擷取後端攝影機的即時畫面並回傳 Base64 字串
+    優化：使用全局相機實例，避免每次重新初始化
     """
     def get(self, request):
-        # 0 是預設攝影機，若有多個攝影機可改為 1, 2...
-        cap = cv2.VideoCapture(0)
+        import time
+        request_start_time = time.time()
+        print(f"[後端] 收到相機快照請求，時間: {datetime.now().isoformat()}")
         
-        if not cap.isOpened():
+        # 獲取相機實例（如果已打開則直接使用，否則初始化）
+        camera_start_time = time.time()
+        cap = get_camera()
+        camera_time = (time.time() - camera_start_time) * 1000
+        
+        if cap is None:
             return Response({"error": "Cannot open camera"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
+        if camera_time > 10:  # 如果超過10ms，說明重新初始化了
+            print(f"[後端] 相機獲取，耗時: {camera_time:.2f}ms (重新初始化)")
+        else:
+            print(f"[後端] 相機獲取，耗時: {camera_time:.2f}ms (使用現有連接)")
+        
+        # 讀取畫面（可能需要丟棄幾幀以確保畫面是最新的）
+        read_start_time = time.time()
+        # 丟棄一幀以確保畫面是最新的
+        cap.read()
         ret, frame = cap.read()
-        cap.release()
+        read_time = (time.time() - read_start_time) * 1000
+        print(f"[後端] 讀取畫面，耗時: {read_time:.2f}ms")
         
         if not ret:
-            return Response({"error": "Failed to capture image"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            print("[後端] ⚠️ 讀取畫面失敗，嘗試重新初始化相機...")
+            release_camera()
+            cap = get_camera()
+            if cap is None:
+                return Response({"error": "Failed to capture image"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            ret, frame = cap.read()
+            if not ret:
+                return Response({"error": "Failed to capture image"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         # 將圖片編碼為 JPEG
+        encode_start_time = time.time()
         _, buffer = cv2.imencode('.jpg', frame)
+        encode_time = (time.time() - encode_start_time) * 1000
+        print(f"[後端] 圖片編碼，耗時: {encode_time:.2f}ms")
         
         # 轉為 Base64 字串
+        base64_start_time = time.time()
         jpg_as_text = base64.b64encode(buffer).decode('utf-8')
+        base64_time = (time.time() - base64_start_time) * 1000
+        print(f"[後端] Base64 轉換，耗時: {base64_time:.2f}ms")
         
         # 加上 Data URI Scheme 前綴
         base64_image = f"data:image/jpeg;base64,{jpg_as_text}"
+        
+        total_time = (time.time() - request_start_time) * 1000
+        print(f"[後端] 相機快照總處理時間: {total_time:.2f}ms")
         
         return Response({"image": base64_image})
 
