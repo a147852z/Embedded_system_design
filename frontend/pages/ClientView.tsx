@@ -39,7 +39,7 @@ const ClientView: React.FC<ClientViewProps> = ({ spots, onRefresh }) => {
     setPlate(null);
     setCapturedImage(null);
     setIsConfirmed(false);
-    setSelectedSpot(null);
+    setSelectedSpot(null);        
 
     try {
       // 1. Get snapshot from backend camera

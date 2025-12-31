@@ -20,7 +20,7 @@ export const api = {
    * GET /api/camera/snapshot/
    * 獲取後端攝影機的即時快照
    */
-  getCameraSnapshot: async (): Promise<string> => {
+  getCameraSnapshot: async (camera?: 'entrance' | 'parking'): Promise<string> => {
     if (USE_MOCK_API) {
       // Mock: Return a placeholder image
       return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
@@ -28,7 +28,8 @@ export const api = {
     try {
       const requestStartTime = Date.now();
       console.log(`[前端] 發送相機快照請求，時間: ${new Date().toISOString()}`);
-      const response = await fetch(`${API_BASE_URL}/camera/snapshot/`);
+      const qs = camera ? `?camera=${encodeURIComponent(camera)}` : '';
+      const response = await fetch(`${API_BASE_URL}/camera/snapshot/${qs}`);
       const requestTime = Date.now() - requestStartTime;
       console.log(`[前端] 相機快照響應，耗時: ${requestTime}ms，狀態: ${response.status}`);
       if (!response.ok) throw new Error('Failed to fetch snapshot');
@@ -38,6 +39,65 @@ export const api = {
       console.error('[前端] 獲取相機快照失敗:', error);
       throw error;
     }
+  },
+
+  /**
+   * GET /api/hardware/config/
+   * 取得後端硬體設定檔（腳位/ROI/門檻）
+   */
+  fetchHardwareConfig: async (): Promise<any> => {
+    if (USE_MOCK_API) {
+      return {
+        version: 1,
+        gpio: { numbering: "BCM", active_high: true },
+        shared: { buzzer: { pin: 18 } },
+        spots: {},
+        cameras: {},
+        logic: {}
+      };
+    }
+    const res = await fetch(`${API_BASE_URL}/hardware/config/`);
+    if (!res.ok) throw new Error('Failed to fetch hardware config');
+    return await res.json();
+  },
+
+  /**
+   * PUT /api/hardware/config/
+   * 儲存硬體設定檔（會寫回後端檔案）
+   */
+  updateHardwareConfig: async (config: any): Promise<any> => {
+    if (USE_MOCK_API) return { message: "ok", config };
+    const res = await fetch(`${API_BASE_URL}/hardware/config/`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data?.error || 'Failed to update hardware config');
+    }
+    return data;
+  },
+
+  /**
+   * GET /api/hardware/status/
+   * 取得硬體自我檢測結果（給後台顯示）
+   */
+  fetchHardwareStatus: async (active?: boolean): Promise<any> => {
+    if (USE_MOCK_API) {
+      return {
+        platform: { os_name: "mock", system: "MOCK", release: "0" },
+        active_test: !!active,
+        gpio: { library_ok: false, error: "MOCK" },
+        cameras: {},
+        shared: { buzzer: { pin: 18, ok: false } },
+        spots: {},
+      };
+    }
+    const qs = active ? `?active=true` : '';
+    const res = await fetch(`${API_BASE_URL}/hardware/status/${qs}`);
+    if (!res.ok) throw new Error('Failed to fetch hardware status');
+    return await res.json();
   },
 
   /**
